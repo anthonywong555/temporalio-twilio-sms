@@ -1,15 +1,8 @@
+import 'dotenv/config';
 import fs from 'fs';
-import * as dotenv from "dotenv";
-dotenv.config();
-
-// @@@SNIPSTART typescript-mtls-worker
 import { Worker, NativeConnection } from '@temporalio/worker';
 import * as activities from './activities';
 
-/**
- * Run a Worker with an mTLS connection, configuration is provided via environment variables.
- * Note that serverNameOverride and serverRootCACertificate are optional.
- */
 async function run({
   address,
   namespace,
@@ -54,9 +47,6 @@ run(getEnv()).catch((err) => {
   console.error(err);
   process.exit(1);
 });
-// @@@SNIPEND
-
-// Helpers for configuring the mTLS client and worker samples
 
 function requiredEnv(name: string): string {
   const value = process.env[name];

@@ -1,25 +1,36 @@
+/**
+ * Imports
+ */
+import 'dotenv/config';
+import express from 'express';
+import bodyParser from 'body-parser';
 import fs from 'fs';
-import * as dotenv from "dotenv";
-dotenv.config();
-
-// @@@SNIPSTART typescript-mtls-worker
 import { Connection, WorkflowClient } from '@temporalio/client';
 import { example } from './workflows';
+import { SMSRequest } from './types/sms';
 
 /**
- * Schedule a Workflow connecting with mTLS, configuration is provided via environment variables.
- * Note that serverNameOverride and serverRootCACertificate are optional.
+ * Clients
  */
-async function run({
-  address,
-  namespace,
-  clientCertPath,
-  clientKeyPath,
-  serverNameOverride,
-  serverRootCACertificatePath,
-  taskQueue,
-}: Env) {
-  // not needed if connecting to temporal cloud
+const app = express();
+app.use(bodyParser.json());
+
+const PORT = process.env.PORT;
+
+const driver = async(payload: SMSRequest) => {
+  /**
+   * Temporal Boiler Plate
+   */
+  const env = getEnv();
+  const {
+    address,
+    namespace,
+    clientCertPath,
+    clientKeyPath,
+    serverNameOverride,
+    serverRootCACertificatePath,
+    taskQueue,
+  } = env;
   let serverRootCACertificate: Buffer | undefined = undefined;
   if (serverRootCACertificatePath) {
     serverRootCACertificate = fs.readFileSync(serverRootCACertificatePath);
@@ -41,21 +52,22 @@ async function run({
   const result = await client.execute(example, {
     taskQueue,
     workflowId: `my-business-id-${Date.now()}`,
-    args: ['Temporal'],
+    args: [payload],
   });
-  console.log(result); // Hello, Temporal!
+  return result;
 }
 
-run(getEnv()).then(
-  () => process.exit(0),
-  (err) => {
-    console.error(err);
+app.post('/sms', async(req, res) => {
+  const {body} = req;
+
+  try {
+    const result = await driver(body)
+    res.send(result);
+  } catch (e) {
+    console.error(e);
     process.exit(1);
   }
-);
-// @@@SNIPEND
-
-// Helpers for configuring the mTLS client and worker samples
+});
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -64,6 +76,8 @@ function requiredEnv(name: string): string {
   }
   return value;
 }
+
+app.listen(PORT, () => console.log(`Listening on ${PORT}.\nNode Environment is on ${process.env.NODE_ENV} mode.`));
 
 export interface Env {
   address: string;
